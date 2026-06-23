@@ -1,145 +1,51 @@
 "use server";
 
-import { supabaseAdmin } from "@/utils/supabase";
+import { execute, queryOne } from "@/utils/db";
 import { getTenantId } from "@/app/actions";
 
 export interface QuoteRow {
-  id: string;
-  quote_code: string;
-  client_id: string;
-  requirement_id: string | null;
-  assigned_user_id: string | null;
-  valid_until: string;
-  subtotal: number;
-  total_amount: number;
-  status: "BORRADOR" | "EN_REVISION" | "ENVIADA" | "APROBADA" | "RECHAZADA" | "VENCIDA";
-  created_at: string;
-  client: { legal_name: string } | null;
+  id: string; quote_code: string; client_id: string; requirement_id: string | null;
+  assigned_user_id: string | null; valid_until: string; subtotal: number; total_amount: number;
+  status: string; created_at: string; client: { legal_name: string } | null;
 }
 
 export async function getQuotes(tenantCode?: string | null): Promise<QuoteRow[]> {
   const tenantId = await getTenantId(tenantCode ?? null);
-
-  const { data, error } = await supabaseAdmin
-    .from("quotes")
-    .select(`
-      id, quote_code, client_id, requirement_id, assigned_user_id, valid_until, subtotal, total_amount, status, created_at,
-      client:client_id ( legal_name )
-    `)
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching quotes:", error);
-    return [];
-  }
-
-  const rows = (data ?? []).map((row: any) => ({
-    ...row,
-    client: Array.isArray(row.client) ? row.client[0] ?? null : row.client
+  const rows = await execute<any>(
+    `SELECT q.id, q.quote_code, q.client_id, q.requirement_id, q.assigned_user_id,
+            q.valid_until, q.subtotal, q.total_amount, q.status, q.created_at,
+            c.legal_name as client_name
+     FROM quotes q LEFT JOIN clients c ON c.id = q.client_id AND c.deleted_at IS NULL
+     WHERE q.tenant_id = $1 ORDER BY q.created_at DESC`, tenantId
+  );
+  return rows.map((r: any) => ({
+    ...r, client: r.client_name ? { legal_name: r.client_name } : null
   }));
-
-  return rows as QuoteRow[];
 }
 
-export async function createQuote(
-  tenantCode: string | null,
-  quoteData: { clientId: string; requirementId?: string; validUntil: string }
-) {
+export async function createQuote(tenantCode: string | null, quoteData: { clientId: string; requirementId?: string; validUntil: string }) {
   const tenantId = await getTenantId(tenantCode);
-  const userId = tenantId === "b0000000-0000-0000-0000-000000000000"
-    ? "b9000000-0000-0000-0000-000000000000"
-    : "a9000000-0000-0000-0000-000000000000";
-
-  const { data, error } = await supabaseAdmin
-    .from("quotes")
-    .insert({
-      tenant_id: tenantId,
-      client_id: quoteData.clientId,
-      requirement_id: quoteData.requirementId || null,
-      assigned_user_id: userId,
-      valid_until: quoteData.validUntil,
-      status: "BORRADOR",
-      created_by: userId
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error creating quote:", error);
-    throw new Error(error.message);
-  }
-
-  return data;
+  const userId = tenantId.startsWith("b") ? "b9000000-0000-0000-0000-000000000000" : "a9000000-0000-0000-0000-000000000000";
+  return queryOne(
+    `INSERT INTO quotes (tenant_id, client_id, requirement_id, assigned_user_id, valid_until, status, created_by)
+     VALUES ($1,$2,$3,$4,$5,'BORRADOR',$6) RETURNING *`,
+    tenantId, quoteData.clientId, quoteData.requirementId || null, userId, quoteData.validUntil, userId
+  );
 }
 
 export async function getQuoteItems(quoteId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("quote_items")
-    .select("*")
-    .eq("quote_id", quoteId)
-    .order("item_order", { ascending: true });
-
-  if (error) {
-    console.error("Error fetching quote items:", error);
-    return [];
-  }
-
-  return data;
+  return execute("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY item_order", quoteId);
 }
 
-export async function addQuoteItem(
-  tenantCode: string | null,
-  itemData: {
-    quoteId: string;
-    description: string;
-    itemType: string;
-    quantity: number;
-    unitPrice: number;
-    discountAmount: number;
-    taxPercent: number;
-    itemOrder: number;
-  }
-) {
+export async function addQuoteItem(tenantCode: string | null, itemData: { quoteId: string; description: string; itemType: string; quantity: number; unitPrice: number; discountAmount: number; taxPercent: number; itemOrder: number }) {
   const tenantId = await getTenantId(tenantCode);
-
-  const { data, error } = await supabaseAdmin
-    .from("quote_items")
-    .insert({
-      tenant_id: tenantId,
-      quote_id: itemData.quoteId,
-      item_order: itemData.itemOrder,
-      item_type: itemData.itemType,
-      description: itemData.description,
-      quantity: itemData.quantity,
-      unit: "UNIDAD",
-      unit_price: itemData.unitPrice,
-      discount_amount: itemData.discountAmount,
-      tax_percent: itemData.taxPercent
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error adding quote item:", error);
-    throw new Error(error.message);
-  }
-
-  return data;
+  return queryOne(
+    `INSERT INTO quote_items (tenant_id, quote_id, item_order, item_type, description, quantity, unit, unit_price, discount_amount, tax_percent)
+     VALUES ($1,$2,$3,$4,$5,$6,'UNIDAD',$7,$8,$9) RETURNING *`,
+    tenantId, itemData.quoteId, itemData.itemOrder, itemData.itemType, itemData.description, itemData.quantity, itemData.unitPrice, itemData.discountAmount, itemData.taxPercent
+  );
 }
 
 export async function updateQuoteStatus(quoteId: string, status: string) {
-  const { data, error } = await supabaseAdmin
-    .from("quotes")
-    .update({ status })
-    .eq("id", quoteId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating quote status:", error);
-    throw new Error(error.message);
-  }
-
-  return data;
+  return queryOne("UPDATE quotes SET status = $1 WHERE id = $2 RETURNING *", status, quoteId);
 }

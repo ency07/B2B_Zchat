@@ -28,8 +28,8 @@ export default function SolutionCatalog({ catalog, branding, tenantCode }: Solut
 
   const products = catalog.flatMap((cat) =>
     cat.subcategories.flatMap((sub) =>
-      sub.families.flatMap((fam) =>
-        fam.series.flatMap((ser) =>
+      sub.families.flatMap((fam: any) =>
+        fam.series.flatMap((ser: any) =>
           ser.products.map((prod: any) => {
             const specs = prod.specifications || {};
             const nameLower = prod.name?.toLowerCase() || "";

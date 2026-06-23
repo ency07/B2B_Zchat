@@ -1,148 +1,122 @@
 "use client";
 
-import * as React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { getTenantConfig } from "@/utils/tenant";
-
-const loginSchema = z.object({
-  email: z.string().email("Correo electrónico no válido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
-});
-
-type LoginFields = z.infer<typeof loginSchema>;
+import { login } from "@/app/actions/auth";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tenantParam = searchParams.get("tenant");
-  const config = getTenantConfig(tenantParam);
+  const redirect = searchParams.get("redirect") || "/dashboard";
 
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFields>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const onSubmit = (data: LoginFields) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsLoading(true);
-    // Simulate API sign-in and session redirection
-    setTimeout(() => {
+    setError("");
+
+    const formData = new FormData(e.currentTarget);
+    const result = await login(formData);
+
+    if (result.error) {
+      setError(result.error);
       setIsLoading(false);
-      router.push(`/dashboard${tenantParam ? `?tenant=${tenantParam}` : ""}`);
-    }, 1200);
+    } else if (result.redirect) {
+      router.push(tenantParam ? `${result.redirect}?tenant=${tenantParam}` : result.redirect);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Email Field */}
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-            Correo Electrónico
-          </label>
-          <div className="relative flex items-center">
-            <Mail className="absolute left-3 w-4 h-4 text-muted-foreground shrink-0" />
+    <div>
+      <h2 className="text-lg font-display font-bold text-white mb-1">Iniciar sesión</h2>
+      <p className="text-sm text-zinc-500 mb-6">Ingresá tus credenciales para acceder al sistema.</p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Error */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Email */}
+        <div>
+          <label className="text-xs font-medium text-zinc-400 block mb-1.5">Correo electrónico</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
             <input
+              name="email"
               type="email"
-              {...register("email")}
+              required
               placeholder="nombre@empresa.com"
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-zinc-950 border border-zinc-700/60 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
             />
           </div>
-          {errors.email && (
-            <p className="text-xs text-destructive mt-0.5">{errors.email.message}</p>
-          )}
         </div>
 
-        {/* Password Field */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
-              Contraseña
-            </label>
+        {/* Password */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-medium text-zinc-400">Contraseña</label>
             <Link
               href={`/recovery${tenantParam ? `?tenant=${tenantParam}` : ""}`}
-              className="text-xs text-primary hover:underline font-medium"
+              className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
             >
               ¿La olvidaste?
             </Link>
           </div>
-          <div className="relative flex items-center">
-            <Lock className="absolute left-3 w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
             <input
+              name="password"
               type={showPassword ? "text" : "password"}
-              {...register("password")}
+              required
               placeholder="••••••••"
-              className="w-full pl-10 pr-10 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+              className="w-full pl-10 pr-10 py-2.5 rounded-lg bg-zinc-950 border border-zinc-700/60 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-xs text-destructive mt-0.5">{errors.password.message}</p>
-          )}
         </div>
 
-        {/* Submit Button */}
+        {/* Submit */}
         <button
           type="submit"
           disabled={isLoading}
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-cyan-500 text-black font-semibold text-sm hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-50"
         >
           {isLoading ? (
-            <span className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
-              Iniciar Sesión <ArrowRight className="w-4 h-4" />
+              Iniciar sesión <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </form>
 
-      {/* Tenant Switcher Section for Walkthrough & Verification */}
-      <div className="pt-4 border-t border-border space-y-2">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block text-center">
-          Demostración White Label (Temas Dinámicos)
-        </span>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => router.push("/login?tenant=acme")}
-            className="px-2 py-1.5 rounded-md text-[10px] font-semibold border border-sky-500/20 bg-sky-500/5 hover:bg-sky-500/10 text-sky-400 text-center cursor-pointer transition-all"
+      <div className="mt-6 pt-4 border-t border-zinc-800/50 text-center">
+        <p className="text-xs text-zinc-600">
+          ¿No tenés cuenta?{" "}
+          <Link
+            href={`/register${tenantParam ? `?tenant=${tenantParam}` : ""}`}
+            className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
           >
-            VentiTech (Celeste)
-          </button>
-          <button
-            onClick={() => router.push("/login?tenant=apex")}
-            className="px-2 py-1.5 rounded-md text-[10px] font-semibold border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500 text-center cursor-pointer transition-all"
-          >
-            Apex Log. (Verde)
-          </button>
-          <button
-            onClick={() => router.push("/login")}
-            className="px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border bg-secondary hover:bg-accent text-foreground text-center cursor-pointer transition-all"
-          >
-            Default ERP
-          </button>
-        </div>
+            Crear cuenta gratuita
+          </Link>
+        </p>
       </div>
     </div>
   );
