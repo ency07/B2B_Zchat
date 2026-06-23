@@ -660,11 +660,11 @@ export default function CmsPage() {
                       >
                         {cat.subcategories.map(sub => (
                           <CatalogNode key={sub.id} label={sub.name} code={sub.subcategoryCode} level={1}>
-                            {sub.families.map(fam => (
+                            {sub.families.map((fam: any) => (
                               <CatalogNode key={fam.id} label={fam.name} code={fam.familyCode} level={2}>
-                                {fam.series.map(ser => (
+                                {fam.series.map((ser: any) => (
                                   <CatalogNode key={ser.id} label={ser.name} code={ser.seriesCode} level={3}>
-                                    {ser.products.map(prod => (
+                                    {ser.products.map((prod: any) => (
                                       <CatalogNode
                                         key={prod.id}
                                         label={prod.name}

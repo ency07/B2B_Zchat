@@ -190,9 +190,9 @@ export default function CatalogView({ catalog, branding, tenantCode }: CatalogVi
   // Flatten products from database catalog tree
   const products = catalog.flatMap(cat => 
     cat.subcategories.flatMap(sub => 
-      sub.families.flatMap(fam => 
-        fam.series.flatMap(ser => 
-          ser.products.map(prod => {
+      sub.families.flatMap((fam: any) => 
+        fam.series.flatMap((ser: any) => 
+          ser.products.map((prod: any) => {
             const specs = prod.specifications || {};
             const nameLower = prod.name.toLowerCase();
 
