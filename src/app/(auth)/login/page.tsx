@@ -21,14 +21,23 @@ export default function LoginPage() {
     setIsLoading(true);
     setError("");
 
-    const formData = new FormData(e.currentTarget);
-    const result = await login(formData);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await login(formData);
 
-    if (result.error) {
-      setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+        setIsLoading(false);
+      } else if (result?.redirect) {
+        router.push(tenantParam ? `${result.redirect}?tenant=${tenantParam}` : result.redirect);
+      } else {
+        setError("Error inesperado. Intentá de nuevo.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Error de conexión. Verificá tu conexión e intentá de nuevo.");
       setIsLoading(false);
-    } else if (result.redirect) {
-      router.push(tenantParam ? `${result.redirect}?tenant=${tenantParam}` : result.redirect);
     }
   };
 

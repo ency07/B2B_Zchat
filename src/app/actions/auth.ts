@@ -17,51 +17,41 @@ import { v4 as uuidv4 } from "uuid";
 // ==========================================
 
 export async function login(formData: FormData) {
-  const email = formData.get("email")?.toString().trim().toLowerCase();
-  const password = formData.get("password")?.toString();
-
-  if (!email || !password) {
-    return { error: "Email y contraseña son requeridos." };
-  }
-
-  const user = await getUserByEmail(email);
-  if (!user || user.status !== 'Activo') {
-    return { error: "Credenciales inválidas." };
-  }
-
-  const valid = await verifyPassword(password, user.password_hash);
-  if (!valid) {
-    return { error: "Credenciales inválidas." };
-  }
-
-  // Get user's primary role
-  const role = await getUserRole(user.id, user.tenant_id);
-  const roleName = role?.role_name || "usuario";
-
-  const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
-
-  await createSession({
-    userId: user.id,
-    tenantId: user.tenant_id,
-    email: user.email,
-    name: displayName,
-    role: roleName,
-  });
-
-  // Log the login event
   try {
-    await execute(
-      `INSERT INTO audit_log (tenant_id, user_id, action, entity_type, entity_id, changes)
-       VALUES ($1, $2, 'LOGIN', 'users', $3, '{}'::jsonb)`,
-      user.tenant_id,
-      user.id,
-      user.id
-    );
-  } catch {
-    // Non-critical, ignore
-  }
+    const email = formData.get("email")?.toString().trim().toLowerCase();
+    const password = formData.get("password")?.toString();
 
-  return { success: true, redirect: "/dashboard" };
+    if (!email || !password) {
+      return { error: "Email y contraseña son requeridos." };
+    }
+
+    const user = await getUserByEmail(email);
+    if (!user || user.status !== 'Activo') {
+      return { error: "Credenciales inválidas." };
+    }
+
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) {
+      return { error: "Credenciales inválidas." };
+    }
+
+    const role = await getUserRole(user.id, user.tenant_id);
+    const roleName = role?.role_name || "usuario";
+    const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
+
+    await createSession({
+      userId: user.id,
+      tenantId: user.tenant_id,
+      email: user.email,
+      name: displayName,
+      role: roleName,
+    });
+
+    return { success: true, redirect: "/dashboard" };
+  } catch (err: any) {
+    console.error("Login error:", err?.message || err);
+    return { error: "Error del servidor. Intentá de nuevo en unos segundos." };
+  }
 }
 
 // ==========================================
