@@ -50,7 +50,7 @@ export default async function WizardPage(props: { searchParams: Promise<{ tenant
             Cargando asistente de preingeniería...
           </div>
         }>
-          <WizardStepper branding={branding} />
+          <WizardStepper branding={branding} tenantCode={tenant} />
         </Suspense>
       </div>
     </main>

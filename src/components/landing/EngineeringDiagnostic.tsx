@@ -78,8 +78,8 @@ export default function EngineeringDiagnostic({ branding }: EngineeringDiagnosti
           </h2>
           <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl">
             Mové los controles con los datos de tu nave. En menos de 10 segundos obtenés
-            un predimensionamiento neumático basado en ASHRAE y RETIE. Sin registro, sin
-            compromiso, sin que te llamemos.
+            un predimensionamiento neumático basado en ASHRAE y RETIE. Esta es una orientación
+            preliminar — un diagnóstico certero requiere visita de un especialista en sitio.
           </p>
         </div>
 
@@ -246,7 +246,7 @@ export default function EngineeringDiagnostic({ branding }: EngineeringDiagnosti
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <p className="text-[11px] text-zinc-600 text-center mt-3 leading-relaxed">
-                Sin registro. No almacenamos tus datos. Respuesta en menos de 72 horas.
+                Datos preliminares de orientación. Un diagnóstico definitivo requiere evaluación en sitio por un especialista.
               </p>
             </div>
           </div>
