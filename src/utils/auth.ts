@@ -85,13 +85,14 @@ export async function getUserByEmail(email: string) {
     id: string;
     email: string;
     password_hash: string;
-    name: string;
+    first_name: string;
+    last_name: string;
     tenant_id: string;
-    is_active: boolean;
+    status: string;
   }>(
-    `SELECT u.id, u.email, u.password_hash, u.name, u.tenant_id, u.is_active
+    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, u.tenant_id, u.status::text
      FROM users u
-     WHERE u.email = $1 AND u.deleted_at IS NULL
+     WHERE u.email = $1
      LIMIT 1`,
     email.toLowerCase().trim()
   );

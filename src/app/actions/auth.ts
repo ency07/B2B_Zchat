@@ -25,7 +25,7 @@ export async function login(formData: FormData) {
   }
 
   const user = await getUserByEmail(email);
-  if (!user || !user.is_active) {
+  if (!user || user.status !== 'Activo') {
     return { error: "Credenciales inválidas." };
   }
 
@@ -38,11 +38,13 @@ export async function login(formData: FormData) {
   const role = await getUserRole(user.id, user.tenant_id);
   const roleName = role?.role_name || "usuario";
 
+  const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
+
   await createSession({
     userId: user.id,
     tenantId: user.tenant_id,
     email: user.email,
-    name: user.name,
+    name: displayName,
     role: roleName,
   });
 
@@ -92,12 +94,15 @@ export async function register(formData: FormData) {
 
   try {
     // Create tenant
+    const slug = (companyName || name).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, '');
     await execute(
-      `INSERT INTO tenants (id, name, slug, status, plan, max_users)
-       VALUES ($1, $2, $3, 'ACTIVO', 'gratuito', 5)`,
+      `INSERT INTO tenants (id, tenant_code, name, legal_name, tax_id, status)
+       VALUES ($1, $2, $3, $4, $5, 'Activo')`,
       tenantId,
+      slug,
       companyName || name,
-      (companyName || name).toLowerCase().replace(/\s+/g, "-")
+      companyName || name,
+      'PENDIENTE-' + tenantId.slice(0, 8)
     );
 
     // Create default site and area for the tenant
@@ -120,21 +125,21 @@ export async function register(formData: FormData) {
 
     // Create user
     await execute(
-      `INSERT INTO users (id, tenant_id, email, password_hash, name, is_active, is_verified)
-       VALUES ($1, $2, $3, $4, $5, true, false)`,
+      `INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, is_verified, status)
+       VALUES ($1, $2, $3, $4, $5, $6, false, 'Activo')`,
       userId,
       tenantId,
       email,
       passwordHash,
-      name
+      name.split(' ')[0] || name,
+      name.split(' ').slice(1).join(' ') || ''
     );
 
     // Assign default admin role
     const roleId = uuidv4();
     await execute(
-      `INSERT INTO roles (id, tenant_id, name, description, is_system)
-       VALUES ($1, $2, 'admin', 'Administrador del sistema', true)
-       ON CONFLICT (tenant_id, name) DO UPDATE SET name = 'admin'`,
+      `INSERT INTO roles (id, tenant_id, role_code, name, description, status)
+       VALUES ($1, $2, 'ADMIN', 'admin', 'Administrador del sistema', 'Activo')`,
       roleId,
       tenantId
     );
